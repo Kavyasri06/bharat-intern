@@ -1,0 +1,211 @@
+import pandas as pd
+
+df = pd.read_csv('spam.csv', encoding='latin1') 
+df.sample(5)
+df.shape
+
+#1.data cleaning
+#2.eda
+#3.text proprocessing 
+#4.model building
+#5.evaluation
+#6.improvement
+#7.wensite
+#8.deploy
+# 1.data cleaning
+df.info()
+df.drop(columns=['Unnamed: 2','Unnamed: 3','Unnamed: 4'],inplace=True)
+df.sample(5)
+df.rename(columns={'v1':'target','v2':'text'},inplace=True)
+df.sample(5)
+from sklearn.preprocessing import LabelEncoder
+encoder=LabelEncoder()
+df['target']=encoder.fit_transform(df['target'])
+df.head()
+  df.isnull().sum()
+df.duplicated().sum()
+df=df.drop_duplicates(keep='first')
+df.duplicated().sum()
+df.shape
+#eda
+#exploratorary data analysis
+#understanding 
+df['target'].value_counts()
+import matplotlib.pyplot as plt
+plt.pie(df['target'].value_counts(),labels=['ham','spam'],autopct='%0.2f')
+#data is imbalanced
+import nltk#to create coulumns 
+!pip install nltk
+nltk.download('punkt')
+df['num_char']=df['text'].apply(len)
+df.head()
+
+df['num_words']=df['text'].apply(lambda x:len(nltk.word_tokenize(x)))
+df.head()
+df['num_sentences']=df['text'].apply(lambda x:len(nltk.sent_tokenize(x)))
+df.head()
+df[['num_char','num_words','num_sentences']].describe()
+df[df['target']==0][['num_char','num_words','num_sentences']].describe()#ham masseges
+df[df['target']==1][['num_char','num_words','num_sentences']].describe()#spam msgs
+import seaborn as sns
+plt.figure(figsize=(12,8))
+sns.histplot(df[df['target']==0]['num_char'])
+sns.histplot(df[df['target']==1]['num_char'],color='red')
+plt.figure(figsize=(12,8))
+sns.histplot(df[df['target']==0]['num_words'])
+sns.histplot(df[df['target']==1]['num_words'],color='red')
+sns.pairplot(df,hue='target')
+sns.heatmap(df.corr(),annot=True)
+#data preprossesing 
+#lowercase,tokenize,specialcharacter removing,remove stop words,remover puntuations,stemming is same words or same meaning words removed 
+def transform_text(text):
+    text=text.lower()
+    text=nltk.word_tokenize(text)
+    y=[]
+    for i in text:
+        if i.isalnum():#checks only for alpha numerics 
+            y.append(i)
+            
+    text=y[:]
+    y.clear()
+    for i in text:
+        if i not in stopwords.words('english')and i not in string.punctuation:
+            y.append(i)
+            
+    text=y[:]
+    y.clear()
+    for i in text:
+        y.append(ps.stem(i))
+            
+    return " ".join(y)
+from nltk.corpus import stopwords
+stopwords.words('english')
+import string
+string.punctuation
+transform_text('Go until jurong point, crazy.. Available only in bugis n great world la e buffet... Cine there got amore wat...'
+df['text'][0]
+#stemming
+from nltk.stem.porter import PorterStemmer
+ps= PorterStemmer()
+ps.stem('moving')
+df['transformedtext']=df['text'].apply(transform_text)
+df.head()
+#wordclounding 
+from wordcloud import WordCloud
+wc=WordCloud(width=550,height=550,min_font_size=10,background_color='black')
+spam_wc=wc.generate(df[df['target']==1]['transformedtext'].str.cat(sep=" "))
+plt.figure(figsize=(12,7))
+plt.imshow(spam_wc)
+ham_wc=wc.generate(df[df['target']==0]['transformedtext'].str.cat(sep=" "))
+plt.figure(figsize=(12,7))
+plt.imshow(ham_wc)
+df.head()
+spam_corpus=[]
+for msg in  df[df['target']==1]['transformedtext'].tolist():
+    for word in msg.split():
+        spam_corpus.append(word)
+len(spam_corpus)
+from collections import Counter
+most_common_words = pd.DataFrame(Counter(spam_corpus).most_common(30))
+
+# Create a bar plot
+sns.barplot(x=most_common_words[0], y=most_common_words[1])
+
+# Rotate the x-axis labels
+plt.xticks(rotation='vertical')
+
+# Show the plot
+plt.show()
+ham_corpus=[]
+for msg in  df[df['target']==1]['transformedtext'].tolist():
+    for word in msg.split():
+        ham_corpus.append(word)
+len(ham_corpus)
+most_common_words = pd.DataFrame(Counter(ham_corpus).most_common(30))
+
+# Create a bar plot
+sns.barplot(x=most_common_words[1], y=most_common_words[0])
+
+# Rotate the x-axis labels
+plt.xticks(rotation='vertical')
+
+# Show the plot
+plt.show()
+#model building
+df.head()
+from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
+tfidf=TfidfVectorizer(max_features=3000)
+cv=CountVectorizer()
+x=tfidf.fit_transform(df['transformedtext']).toarray()
+x.shape
+y=df['target'].values
+y
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2,random_state=2)
+from sklearn.naive_bayes import GaussianNB ,MultinomialNB,BernoulliNB
+from sklearn.svm import SVC
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.metrics import accuracy_score,confusion_matrix,precision_score
+gnb=GaussianNB()
+mnb=MultinomialNB()
+bnb=BernoulliNB()
+gnb.fit(x_train,y_train)
+y_pred1=gnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+mnb.fit(x_train,y_train)
+y_pred2=mnb.predict(x_test)
+print(accuracy_score(y_test,y_pred2))
+print(confusion_matrix(y_test,y_pred2))
+print(precision_score(y_test,y_pred2))#precision scr is more data imb so prec considers
+bnb.fit(x_train,y_train)
+y_pred3=bnb.predict(x_test)
+print(accuracy_score(y_test,y_pred3))
+print(confusion_matrix(y_test,y_pred3))
+print(precision_score(y_test,y_pred3))
+#tfidf then mnb
+#nb
+#model improving
+#voting classifier
+svc=SVC(kernel='sigmoid',gamma=1.0,probability=True)
+mnb=MultinomialNB()
+etc=ExtraTreesClassifier(n_estimators=50,random_state=2)
+from sklearn.ensemble import VotingClassifier
+voting=VotingClassifier(estimators=[('svm',svc),('nb',mnb),('et',etc)],voting='soft')
+voting.fit(x_train,y_train)
+feature_extraction = TfidfVectorizer(lowercase=True)
+feature_extraction= TfidfVectorizer(min_df=1,stop_words='english',lowercase=True)
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression  # Assuming you're using Logistic Regression
+
+# Sample training data
+training_texts = [
+    "Congratulations! You've won a free trip to Hawaii.",
+    "Important update on your account.",
+    "Meeting at 10 AM tomorrow.",
+    "You have been selected for a prize!"
+]
+
+training_labels = [1, 0, 0, 1]  # Example labels (1: spam, 0: ham)
+
+# Initialize and fit the TF-IDF Vectorizer
+feature_extraction = TfidfVectorizer()
+training_data_features = feature_extraction.fit_transform(training_texts)
+
+# Initialize and train the model
+model = LogisticRegression()
+model.fit(training_data_features, training_labels)
+
+# Now process the input text
+input_text = ['Congratulations! You have won a free trip to Hawaii. Click here to claim your prize now!']
+input_data_features = feature_extraction.transform(input_text)
+
+# Predict using the trained model
+prediction = model.predict(input_data_features)
+print(prediction)
+
+if prediction[0] == 1:
+    print('spam mail')
+else:
+    print('ham mail')
